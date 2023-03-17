@@ -1,0 +1,53 @@
+
+WITH T1 AS (
+  SELECT submission_date, hacker_id, COUNT(*) AS submissions_count
+  FROM submissions
+  GROUP BY submission_date, hacker_id
+),
+
+
+ T2 AS (
+   SELECT submission_date, hacker_id,submissions_count,
+   RANK() OVER(PARTITION BY submission_date ORDER BY submissions_count DESC, hacker_id) AS RANKING
+   FROM T1
+ ),
+
+ top_hacker AS (
+   SELECT submission_date, hacker_id
+   FROM T2
+   WHERE RANKING= 1
+ ),
+
+
+--NOW to find the hacker who made consistent submissions
+
+
+
+--To make the query readable and easy to understand.
+
+T3 AS (
+  SELECT DISTINCT submission_date, hacker_id
+  FROM submissions
+),
+
+T4 AS (
+  SELECT submission_date, hacker_id, 
+  RANK() OVER (PARTITION BY hacker_id ORDER BY submission_date ) AS rank_hacker_daily,
+  DATEDIFF(day,(SELECT MIN(submission_date) FROM submissions), submission_date) +1 AS day_from_start 
+  FROM T3  
+),
+
+consistent_hacker AS (
+  SELECT submission_date , count(hacker_id) AS unique_hackers 
+  FROM T4
+  WHERE rank_hacker_daily=day_from_start
+  GROUP BY submission_date
+)
+
+
+SELECT a.submission_date, unique_hackers, a.hacker_id,h.name
+FROM top_hacker a
+LEFT JOIN hackers h 
+ON h.hacker_id=a.hacker_id
+LEFT JOIN consistent_hacker ch
+ON ch.submission_date=a.submission_date
